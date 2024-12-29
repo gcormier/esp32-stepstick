@@ -174,12 +174,13 @@ void setup()
   delay(100);
 
   stepperA->setAcceleration(20000);
-  stepperA->setSpeedInTicks(4000);
   stepperB->setAcceleration(20000);
-  stepperB->setSpeedInTicks(4000);
+  
+  stepperA->setSpeedInTicks(2000);
+  stepperB->setSpeedInTicks(2000);
 
-  driverA.setRunCurrent(40);
-  driverB.setRunCurrent(40);
+  driverA.setRunCurrent(30);
+  driverB.setRunCurrent(30);
 }
 
 void loop()
@@ -190,12 +191,12 @@ void loop()
 
   while (stepperA->isRunning())
     ;
-  delay(500);
+  delay(200);
 
   stepperA->move(-steps_per_cm * moveCM);
   stepperB->move(steps_per_cm * moveCM);
 
   while (stepperA->isRunning())
     ;
-  delay(500);
+  delay(5000);
 }
