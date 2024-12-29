@@ -67,6 +67,8 @@ constexpr float steps_per_cm = steps_per_mm * 10; // 1 cm = 10 mm
 volatile bool stalled_A = false;
 volatile bool stalled_B = false;
 
+bool lostComms = false;
+
 void IRAM_ATTR stallInterruptA()
 { // flag set for motor A when motor stalls
   stalled_A = true;
@@ -142,15 +144,13 @@ void setup()
   setupDriver(MotorAParams, driverA);
   setupDriver(MotorBParams, driverB);
 
-  if (!driverA.isSetupAndCommunicating())
-    Serial.println("Stepper driver A not setup and communicating!");
-  else
-    Serial.println("Communication A established!");
-
-  if (!driverB.isSetupAndCommunicating())
-    Serial.println("Stepper driver B not setup and communicating!");
-  else
-    Serial.println("Communication B established!");
+  while (!driverA.isSetupAndCommunicating() && !driverB.isSetupAndCommunicating())
+  {
+    Serial.println("Waiting for comms to both motors!");
+    delay(500);
+    setupDriver(MotorAParams, driverA);
+    setupDriver(MotorBParams, driverB);
+  }
 
   // Now, setup the stepper input/output steps
   engine.init();
@@ -175,28 +175,45 @@ void setup()
 
   stepperA->setAcceleration(20000);
   stepperB->setAcceleration(20000);
-  
-  stepperA->setSpeedInTicks(2000);
-  stepperB->setSpeedInTicks(2000);
 
-  driverA.setRunCurrent(30);
-  driverB.setRunCurrent(30);
+  stepperA->setSpeedInTicks(3000);
+  stepperB->setSpeedInTicks(3000);
+
+  driverA.setRunCurrent(40);
+  driverB.setRunCurrent(40);
 }
+
+bool flip = true;
 
 void loop()
 {
+  while (lostComms)
+  {
+    ; // Force a hard reset since we lost comms, don't know the state
+  }
+
+  if (!driverA.isSetupAndCommunicating() || !driverB.isSetupAndCommunicating())
+  {
+    lostComms = true;
+    Serial.println("Lost communication with one or both drivers! Reboot!");
+  }
+
   int moveCM = 29;
-  stepperA->move(steps_per_cm * moveCM);
-  stepperB->move(-steps_per_cm * moveCM);
 
-  while (stepperA->isRunning())
-    ;
-  delay(200);
+  if (!stepperA->isRunning() && flip)
+  {
+    delay(200);
+    stepperA->move(steps_per_cm * moveCM);
+    stepperB->move(-steps_per_cm * moveCM);
 
-  stepperA->move(-steps_per_cm * moveCM);
-  stepperB->move(steps_per_cm * moveCM);
+    flip = false;
+  }
 
-  while (stepperA->isRunning())
-    ;
-  delay(5000);
+  if (!stepperA->isRunning() && !flip)
+  {
+    delay(1000);
+    stepperA->move(-steps_per_cm * moveCM);
+    stepperB->move(steps_per_cm * moveCM);
+    flip = true;
+  }
 }
